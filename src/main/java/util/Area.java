@@ -1,9 +1,13 @@
 package util;
 
+import com.google.common.geometry.S2LatLng;
+import com.google.common.geometry.S2Loop;
+import com.google.common.geometry.S2Point;
 import org.locationtech.jts.geom.Coordinate;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class describes the Area class which is a spatial area that has numerical attribute and represented by a set of marginal coordinates
@@ -13,8 +17,8 @@ public class Area implements Cloneable , Serializable {
     private int index;
     private long sim_attr;
     private long extensive_attr;
-    private Coordinate[] coor_array;
-    private Coordinate centroid;
+    private List<S2Point> coor_array;
+    private S2Point centroid;
     private ArrayList<Integer> neigh_area_index;
     private int associate_region_index;
 
@@ -25,12 +29,12 @@ public class Area implements Cloneable , Serializable {
      * @param extensive_attr the extensive attribute
      * @param coor_array the set of coordinates that marks the margin of this area
      */
-    public Area(int index , long sim_attr, long extensive_attr , Coordinate[] coor_array)
+    public Area(int index , long sim_attr, long extensive_attr , List<S2Point> coor_array)
     {
         this.index = index;
         this.sim_attr = sim_attr;
         this.extensive_attr = extensive_attr;
-        this.coor_array = coor_array;
+        this.coor_array = coor_array; // changed
         neigh_area_index = new ArrayList<>();
         associate_region_index = -1;
     }
@@ -41,13 +45,19 @@ public class Area implements Cloneable , Serializable {
     {
         double total_x = 0.0;
         double total_y = 0.0;
-        for (Coordinate coordinate : coor_array) {
-            total_x += coordinate.getX();
-            total_y += coordinate.getY();
+        for (S2Point coordinate : coor_array) {
+            S2LatLng coorLatLng = new S2LatLng(coordinate);
+            total_x += coorLatLng.latDegrees();
+            total_y += coorLatLng.lngDegrees();
         }
-        double ave_x = total_x / coor_array.length;
-        double ave_y = total_y / coor_array.length;
-        centroid = new Coordinate(ave_x , ave_y);
+        double ave_x = total_x / coor_array.size();
+        double ave_y = total_y / coor_array.size();
+        S2LatLng latLngCentroid = S2LatLng.fromDegrees(ave_x, ave_y);
+
+        centroid = new S2Point(latLngCentroid.toPoint().getX(), latLngCentroid.toPoint().getY(), latLngCentroid.toPoint().getZ());
+        S2LatLng coorLatLng = new S2LatLng(centroid);
+        double lat = coorLatLng.latDegrees();
+        double lng = coorLatLng.lngDegrees();
     }
 
     /**
@@ -57,12 +67,19 @@ public class Area implements Cloneable , Serializable {
      */
     public double compute_dist(Area a)
     {
-        Coordinate a_centroid = a.get_centroid();
-        return  Math.sqrt((centroid.getX() - a.get_centroid().getX()) * (centroid.getX() - a.get_centroid().getX()) + (centroid.getY() - a_centroid.getY()) * (centroid.getY() - a_centroid.getY()));
-
+      //  S2Point a_centroid = a.get_centroid();
+        S2LatLng a_centroid = new S2LatLng(a.get_centroid());
+        S2LatLng LatLngCentroid = new S2LatLng(centroid);
+//        double lng1 = LatLngCentroid.lngDegrees();
+//        double lat1 = LatLngCentroid.latDegrees();
+//        double lng2 = a_centroid.lngDegrees();
+//        double lat2 =  a_centroid.latDegrees();
+//        double value1 = Math.sqrt((LatLngCentroid.lngDegrees() - a_centroid.lngDegrees()) * (LatLngCentroid.lngDegrees() - a_centroid.lngDegrees()) + (LatLngCentroid.latDegrees() - a_centroid.latDegrees()) * (LatLngCentroid.latDegrees() - a_centroid.latDegrees()));
+        return  Math.sqrt((LatLngCentroid.lngDegrees() - a_centroid.lngDegrees()) * (LatLngCentroid.lngDegrees() - a_centroid.lngDegrees()) + (LatLngCentroid.latDegrees() - a_centroid.latDegrees()) * (LatLngCentroid.latDegrees() - a_centroid.latDegrees()));
+              //Math.sqrt((centroid.getX() - a.get_centroid().getX()) * (centroid.getX() - a.get_centroid().getX()) + (centroid.getY() - a_centroid.getY()) * (centroid.getY() - a_centroid.getY()));
     }
 
-    public void set_centroid(Coordinate centroid)
+    public void set_centroid(S2Point centroid)
     {
         this.centroid = centroid;
     }
@@ -111,9 +128,9 @@ public class Area implements Cloneable , Serializable {
 
     public int get_associated_region_index() { return associate_region_index; }
 
-    public Coordinate[] get_coordinates() { return coor_array; }
+    public List<S2Point> get_coordinates() { return coor_array; }
 
-    public Coordinate get_centroid() { return centroid; }
+    public S2Point get_centroid() { return centroid; }
 
 
     public long compute_hetero(Area neigh_area) {
@@ -158,3 +175,4 @@ public class Area implements Cloneable , Serializable {
 
 
 }
+
