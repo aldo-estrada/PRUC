@@ -32,7 +32,7 @@ public class Preprocess {
     public static ArrayList<Area> GeoSetBuilder(String dataset) throws IOException {
         ArrayList<Area> areas = new ArrayList<>();
         FeatureCollection<SimpleFeatureType, SimpleFeature> collection = preprocess(dataset);
-        ArrayList<Geometry> polygons = initial_construct(collection, areas, dataset);
+        ArrayList<S2Polyline> polygons = initial_construct(collection, areas, dataset); // change name to polylines
         setNeighbors(polygons, areas);
 
 
@@ -92,9 +92,10 @@ public class Preprocess {
         return source.getFeatures(filter);
     }
 
-    private static ArrayList<Geometry> initial_construct(FeatureCollection<SimpleFeatureType, SimpleFeature> collection, ArrayList<Area> areas, String dataset) {
+    private static ArrayList<S2Polyline> initial_construct(FeatureCollection<SimpleFeatureType, SimpleFeature> collection, ArrayList<Area> areas, String dataset) {
         ArrayList<Geometry> polygons = new ArrayList<>();
-     //   ArrayList<S2Polygon> polygonsS2 = new ArrayList<>();
+        ArrayList<S2Polygon> polygonsS2 = new ArrayList<>(); // testing
+        ArrayList<S2Polyline> polylinesS2 = new ArrayList<>(); // testing
         int geo_index = 0;
         try (FeatureIterator<SimpleFeature> features = collection.features()) {
             while (features.hasNext()) {
@@ -119,33 +120,35 @@ public class Preprocess {
                 Coordinate[] coor = polygon.getCoordinates();
                 List<S2Point> verticesLoop = new ArrayList<>();
                 for (Coordinate coordinate : coor) {
-                    verticesLoop.add(S2LatLng.fromDegrees(coordinate.getX(), coordinate.getY()).toPoint());
+                    verticesLoop.add(S2LatLng.fromDegrees(coordinate.getY(), coordinate.getX()).toPoint()); // is the x lat or lng?
                 }
 
-               /* Coordinate testcoor = new Coordinate();
+                Coordinate testcoor = new Coordinate(); // testing
 
-                S2Loop outerLoop = new S2Loop(verticesLoop);
-                S2Polygon polygonS2 = new S2Polygon(outerLoop);
-                polygonsS2.add(polygonS2);
-                GeometryFactory testgeo = new GeometryFactory();
-                Geometry GeoPolgon = testgeo.createPolygon(coor); */
-
+                S2Loop outerLoop = new S2Loop(verticesLoop); // testing
+                S2Polygon polygonS2 = new S2Polygon(outerLoop); // testing
+                polygonsS2.add(polygonS2); // testing
+                S2Polyline polylineS2 = new S2Polyline(verticesLoop); // testing
+                polylinesS2.add(polylineS2); // testing
                 Area newArea = new Area(geo_index, internal_attr, extensive_attr, verticesLoop);
                 geo_index++;
                 areas.add(newArea);
             }
         }
-        //These should match but keeps producing the wrong boolean value
-   /*     for (int i = 0; i < polygonsS2.size(); i++) {
-            for (int j = i + 1; j < polygonsS2.size(); j++) {
-                if(polygons.get(i).intersects(polygons.get(j)) != polygonsS2.get(i).intersects(polygonsS2.get(j))) {
-                    System.out.println("Failed");
-                }
-            }
+        // These should match but keeps producing the wrong boolean value
+//        for (int i = 0; i < polygonsS2.size(); i++) {
+//            for (int j = i + 1; j < polygonsS2.size(); j++) {
+//                boolean test1 = polygons.get(i).intersects(polygons.get(j));
+//       //         boolean test2 = polygonsS2.get(i).intersects(polygonsS2.get(j));
+//                boolean test3 = polylinesS2.get(i).intersects(polylinesS2.get(j));
+//                if(test1 ^ test3) {
+//                    System.out.println("Failed");
+//                }
+//            }
+//
+//        }
 
-        } */
-
-        return polygons;
+        return polylinesS2;
 
     }
 
@@ -202,22 +205,41 @@ public class Preprocess {
                }
            }
        } */
-    private static void setNeighbors(ArrayList<Geometry> polygons, ArrayList<Area> areas) {
+//    private static void setNeighbors(ArrayList<Geometry> polygons, ArrayList<Area> areas) {
+//
+//        for (int i = 0; i < polygons.size(); i++) {
+//
+//            for (int j = i + 1; j < polygons.size(); j++) {
+//                if (polygons.get(i).intersects(polygons.get(j))) {
+//
+//                    Geometry intersection = polygons.get(i).intersection(polygons.get(j));
+//                    if (intersection.getGeometryType() != "Point") {
+//                        areas.get(i).add_neighbor(j);
+//                        areas.get(j).add_neighbor(i);
+//                    }
+//                }
+//            }
+//        }
+//
+//
+//    }
+//}
+    private static void setNeighbors(ArrayList<S2Polyline> polylines, ArrayList<Area> areas) {
 
-        for (int i = 0; i < polygons.size(); i++) {
-
-            for (int j = i + 1; j < polygons.size(); j++) {
-                if (polygons.get(i).intersects(polygons.get(j))) {
-
-                    Geometry intersection = polygons.get(i).intersection(polygons.get(j));
-                    if (intersection.getGeometryType() != "Point") {
-                        areas.get(i).add_neighbor(j);
-                        areas.get(j).add_neighbor(i);
-                    }
+        for (int i = 0; i < polylines.size(); i++) {
+            long startTime = System.nanoTime();
+            for (int j = i + 1; j < polylines.size(); j++) {
+                if (polylines.get(i).intersects(polylines.get(j))) {
+                    areas.get(i).add_neighbor(j);
+                    areas.get(j).add_neighbor(i);
                 }
             }
+            if ((i % 100 == 0) && (!polylines.isEmpty())) {
+                double result = (double) i / polylines.size();
+                long duration = (System.nanoTime() - startTime) / 1000000;
+                System.out.println(result * 100.00 + "%");
+                System.out.println("Time: " + duration + "ms");
+            }
         }
-
-
     }
 }
